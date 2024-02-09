@@ -1,320 +1,352 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta charset="utf-8" />
-<title>Happy New Year</title>
-<link rel="icon" href="https://anonyviet.com/resource/phaohoa2/favicon.ico" type="image/x-ico"/>
-
-<style type="text/css">
-    #info {
-	background:rgb(43, 35, 35);
-	opacity:0.8;
-	position: absolute;
-	top:5px;
-	right:5px;
-	width:280px;
-	color:#fff;
-	border-radius: 5px;
-	z-index:10
-	
-}
-
-#info p {
-   padding:0 10px;
-}
-
-#info a{ color:#f2ea0a; }
-
-/* basic styles for black background and crosshair cursor */
-body {
-	background: #000;
-	margin: 0;
-}
-
-canvas {
-	cursor: crosshair;
-	display: block;
-}
-</style>
+  <meta charset="utf-8">
+  <title>Happy New Year</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-
-
-<canvas id="canvas">Canvas không hổ trợ trình duyệt của bạn.</canvas>
-<script type="text/javascript" src="script.js"> </script>
-<script type="text/javascript">
-    // when animating on canvas, it is best to use requestAnimationFrame instead of setTimeout or setInterval
-// not supported in all browsers though and sometimes needs a prefix, so we need a shim
-window.requestAnimFrame = ( function() {
-	return window.requestAnimationFrame ||
-				window.webkitRequestAnimationFrame ||
-				window.mozRequestAnimationFrame ||
-				function( callback ) {
-					window.setTimeout( callback, 1000 / 60 );
-				};
-})();
-
-// now we will setup our basic variables for the demo
-var canvas = document.getElementById( 'canvas' ),
-		ctx = canvas.getContext( '2d' ),
-		// full screen dimensions
-		cw = window.innerWidth,
-		ch = window.innerHeight,
-		// firework collection
-		fireworks = [],
-		// particle collection
-		particles = [],
-		// starting hue
-		hue = 120,
-		// when launching fireworks with a click, too many get launched at once without a limiter, one launch per 5 loop ticks
-		limiterTotal = 5,
-		limiterTick = 0,
-		// this will time the auto launches of fireworks, one launch per 80 loop ticks
-		timerTotal = 80,
-		timerTick = 0,
-		mousedown = false,
-		// mouse x coordinate,
-		mx,
-		// mouse y coordinate
-		my;
-		
-// set canvas dimensions
-canvas.width = cw;
-canvas.height = ch;
-
-// now we are going to setup our function placeholders for the entire demo
-
-// get a random number within a range
-function random( min, max ) {
-	return Math.random() * ( max - min ) + min;
+  <style>
+    @import url('https://fonts.googleapis.com/css?family=Montserrat:700|Pacifico');
+*, *:after, *:before {
+   box-sizing: border-box;
+   margin: 0;
+   padding: 0;
+   -webkit-transition: all 100ms ease-in;
+   transition: all 100ms ease-in;
 }
-
-// calculate the distance between two points
-function calculateDistance( p1x, p1y, p2x, p2y ) {
-	var xDistance = p1x - p2x,
-			yDistance = p1y - p2y;
-	return Math.sqrt( Math.pow( xDistance, 2 ) + Math.pow( yDistance, 2 ) );
+html {
+   background: #222048;
 }
-
-// create firework
-function Firework( sx, sy, tx, ty ) {
-	// actual coordinates
-	this.x = sx;
-	this.y = sy;
-	// starting coordinates
-	this.sx = sx;
-	this.sy = sy;
-	// target coordinates
-	this.tx = tx;
-	this.ty = ty;
-	// distance from starting point to target
-	this.distanceToTarget = calculateDistance( sx, sy, tx, ty );
-	this.distanceTraveled = 0;
-	// track the past coordinates of each firework to create a trail effect, increase the coordinate count to create more prominent trails
-	this.coordinates = [];
-	this.coordinateCount = 3;
-	// populate initial coordinate collection with the current coordinates
-	while( this.coordinateCount-- ) {
-		this.coordinates.push( [ this.x, this.y ] );
-	}
-	this.angle = Math.atan2( ty - sy, tx - sx );
-	this.speed = 2;
-	this.acceleration = 1.05;
-	this.brightness = random( 50, 70 );
-	// circle target indicator radius
-	this.targetRadius = 1;
+.msg {
+   width: 100%;
+   font-family:  'Pacifico', sans-serif;
+   font-size: 100px;
+   font-weight: 700;
+   color: #f48fb1;
+   text-align: center;
+   position: absolute;
+   top: 50%;
+   opacity: 0;
+   animation: message 2s ease-in-out 7s forwards;
 }
-
-// update firework
-Firework.prototype.update = function( index ) {
-	// remove last item in coordinates array
-	this.coordinates.pop();
-	// add current coordinates to the start of the array
-	this.coordinates.unshift( [ this.x, this.y ] );
-	
-	// cycle the circle target indicator radius
-	if( this.targetRadius < 8 ) {
-		this.targetRadius += 0.3;
-	} else {
-		this.targetRadius = 1;
-	}
-	
-	// speed up the firework
-	this.speed *= this.acceleration;
-	
-	// get the current velocities based on angle and speed
-	var vx = Math.cos( this.angle ) * this.speed,
-			vy = Math.sin( this.angle ) * this.speed;
-	// how far will the firework have traveled with velocities applied?
-	this.distanceTraveled = calculateDistance( this.sx, this.sy, this.x + vx, this.y + vy );
-	
-	// if the distance traveled, including velocities, is greater than the initial distance to the target, then the target has been reached
-	if( this.distanceTraveled >= this.distanceToTarget ) {
-		createParticles( this.tx, this.ty );
-		// remove the firework, use the index passed into the update function to determine which to remove
-		fireworks.splice( index, 1 );
-	} else {
-		// target not reached, keep traveling
-		this.x += vx;
-		this.y += vy;
-	}
+.Year {
+   position: absolute;
+   top: 0;
+   left: 0;
+   width: 100%;
+   height: 100%;
+   display: flex;
+   flex-direction: row;
+   justify-content: center;
+   align-items: center;
+   overflow: hidden;
+   padding: 200px 100px 0px 0px;
 }
-
-// draw firework
-Firework.prototype.draw = function() {
-	ctx.beginPath();
-	// move to the last tracked coordinate in the set, then draw a line to the current x and y
-	ctx.moveTo( this.coordinates[ this.coordinates.length - 1][ 0 ], this.coordinates[ this.coordinates.length - 1][ 1 ] );
-	ctx.lineTo( this.x, this.y );
-	ctx.strokeStyle = 'hsl(' + hue + ', 100%, ' + this.brightness + '%)';
-	ctx.stroke();
-	
-	ctx.beginPath();
-	// draw the target for this firework with a pulsing circle
-	ctx.arc( this.tx, this.ty, this.targetRadius, 0, Math.PI * 2 );
-	ctx.stroke();
+.Year>span {
+   font-family: sans-serif;
+   font-size: 175px;
+   font-weight: 600;
+   color: #7a8fe8;
+   margin-right: 30px;
 }
-
-// create particle
-function Particle( x, y ) {
-	this.x = x;
-	this.y = y;
-	// track the past coordinates of each particle to create a trail effect, increase the coordinate count to create more prominent trails
-	this.coordinates = [];
-	this.coordinateCount = 5;
-	while( this.coordinateCount-- ) {
-		this.coordinates.push( [ this.x, this.y ] );
-	}
-	// set a random angle in all possible directions, in radians
-	this.angle = random( 0, Math.PI * 2 );
-	this.speed = random( 1, 10 );
-	// friction will slow the particle down
-	this.friction = 0.95;
-	// gravity will be applied and pull the particle down
-	this.gravity = 1;
-	// set the hue to a random number +-20 of the overall hue variable
-	this.hue = random( hue - 20, hue + 20 );
-	this.brightness = random( 50, 80 );
-	this.alpha = 1;
-	// set how fast the particle fades out
-	this.decay = random( 0.015, 0.03 );
+span.y1 {
+   position: absolute;
+   top: 50%;
+   right: 50%;
+   margin-right: -200px;
+   animation: Yr_2023 5s ease-in-out 5s forwards;
 }
-
-// update particle
-Particle.prototype.update = function( index ) {
-	// remove last item in coordinates array
-	this.coordinates.pop();
-	// add current coordinates to the start of the array
-	this.coordinates.unshift( [ this.x, this.y ] );
-	// slow down the particle
-	this.speed *= this.friction;
-	// apply velocity
-	this.x += Math.cos( this.angle ) * this.speed;
-	this.y += Math.sin( this.angle ) * this.speed + this.gravity;
-	// fade out the particle
-	this.alpha -= this.decay;
-	
-	// remove the particle once the alpha is low enough, based on the passed in index
-	if( this.alpha <= this.decay ) {
-		particles.splice( index, 1 );
-	}
+span.y2 {
+   position: absolute;
+   right: 0%;
+   margin-right: -200px;
+   animation: Yr_2024 6s ease-in-out forwards;
 }
-
-// draw particle
-Particle.prototype.draw = function() {
-	ctx. beginPath();
-	// move to the last tracked coordinates in the set, then draw a line to the current x and y
-	ctx.moveTo( this.coordinates[ this.coordinates.length - 1 ][ 0 ], this.coordinates[ this.coordinates.length - 1 ][ 1 ] );
-	ctx.lineTo( this.x, this.y );
-	ctx.strokeStyle = 'hsla(' + this.hue + ', 100%, ' + this.brightness + '%, ' + this.alpha + ')';
-	ctx.stroke();
+span.y2:before {
+   content: '';
+   width: 0px;
+   height: 6px;
+   display: block;
+   border-radius: 3px;
+   background: #7a8fe8;
+   transform: rotate(0deg);
+   transform-origin: left top;
+   position: absolute;
+   top: 55px;
+   left: 10px;
+   z-index: -1;
+   animation: years 1s ease-in-out 4s;
 }
-
-// create particle group/explosion
-function createParticles( x, y ) {
-	// increase the particle count for a bigger explosion, beware of the canvas performance hit with the increased particles though
-	var particleCount = 30;
-	while( particleCount-- ) {
-		particles.push( new Particle( x, y ) );
-	}
+.balloon {
+   width: 100px;
+   height: 100px;
+   display: block;
+   background: #e8d57a;
+   border-radius: 50%;
+   position: absolute;
+   top: 50%;
+   margin-top: -165px;
+   right: 0%;
+   margin-right: -200px;
+   animation: balloon_animation 10s ease-in-out forwards;
 }
-
-// main demo loop
-function loop() {
-	// this function will run endlessly with requestAnimationFrame
-	requestAnimFrame( loop );
-	
-	// increase the hue to get different colored fireworks over time
-	hue += 0.5;
-	
-	// normally, clearRect() would be used to clear the canvas
-	// we want to create a trailing effect though
-	// setting the composite operation to destination-out will allow us to clear the canvas at a specific opacity, rather than wiping it entirely
-	ctx.globalCompositeOperation = 'destination-out';
-	// decrease the alpha property to create more prominent trails
-	ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-	ctx.fillRect( 0, 0, cw, ch );
-	// change the composite operation back to our main mode
-	// lighter creates bright highlight points as the fireworks and particles overlap each other
-	ctx.globalCompositeOperation = 'lighter';
-	
-	// loop over each firework, draw it, update it
-	var i = fireworks.length;
-	while( i-- ) {
-		fireworks[ i ].draw();
-		fireworks[ i ].update( i );
-	}
-	
-	// loop over each particle, draw it, update it
-	var i = particles.length;
-	while( i-- ) {
-		particles[ i ].draw();
-		particles[ i ].update( i );
-	}
-	
-	// launch fireworks automatically to random coordinates, when the mouse isn't down
-	if( timerTick >= timerTotal ) {
-		if( !mousedown ) {
-			// start the firework at the bottom middle of the screen, then set the random target coordinates, the random y coordinates will be set within the range of the top half of the screen
-			fireworks.push( new Firework( cw / 2, ch, random( 0, cw ), random( 0, ch / 2 ) ) );
-			timerTick = 0;
-		}
-	} else {
-		timerTick++;
-	}
-	
-	// limit the rate at which fireworks get launched when mouse is down
-	if( limiterTick >= limiterTotal ) {
-		if( mousedown ) {
-			// start the firework at the bottom middle of the screen, then set the current mouse coordinates as the target
-			fireworks.push( new Firework( cw / 2, ch, mx, my ) );
-			limiterTick = 0;
-		}
-	} else {
-		limiterTick++;
-	}
+.balloon:before {
+   content: '';
+   width: 0;
+   height: 0;
+   border-style: solid;
+   border-width: 0 10px 20px 10px;
+   border-color: transparent transparent #b19b32 transparent;
+   position: absolute;
+   left: 50%;
+   margin-left: -10px;
+   bottom: -10px;
+   z-index: -1;
 }
+.balloon:after {
+   content: '';
+   width: 4px;
+   height: 100px;
+   display: block;
+   background: #fff;
+   border-radius: 0px 0px 3px 3px;
+   position: absolute;
+   left: 50%;
+   margin-left: -2px;
+   bottom: -110px;
+}
+.cracker {
+   width: 100%;
+   height: 100%;
+   display: block;
+   position: absolute;
+   top: 0;
+   left: 0;
+   overflow: hidden;
+}
+.cracker>div {
+   border: 2px solid #fff;
+   position: absolute;
+   opacity: 0;
+   animation: fire 1.5s ease-in-out 8s forwards;
+}
+.cracker>div.f1 {
+   left: 20%;
+   top: 40%;
+}
+.cracker>div.f2 {
+   left: 15%;
+   top: 70%;
+}
+.cracker>div.f3 {
+   right: 20%;
+   top: 40%;
+}
+.cracker>div.f4 {
+   right: 15%;
+   top: 70%;
+}
+.cracker>div span {
+   width: 6px;
+   height: 6px;
+   display: block;
+   position: absolute;
+   top: 0;
+   left: 0;
+   opacity: 0;
+   animation: fire_animation 0.5s ease-in-out 9s forwards;
+}
+.cracker>div span:nth-child(1) {
+   transform: rotate(0deg);
+}
+.cracker>div span:nth-child(2) {
+   transform: rotate(120deg);
+}
+.cracker>div span:nth-child(3) {
+   transform: rotate(240deg);
+}
+.cracker>div span:before {
+   content: '';
+   width: 2px;
+   height: 50px;
+   display: block;
+   background: #f5cc06;
+   position: absolute;
+   top: -60px;
+   left: 2px;
+}
+.cracker>div span:after {
+   content: '';
+   width: 2px;
+   height: 50px;
+   display: block;
+   background: #f5cc06;
+   position: absolute;
+   bottom: -60px;
+   left: 2px;
+}
+.cracker>div span i:before {
+   content: '';
+   width: 3px;
+   height: 3px;
+   display: block;
+   border-radius: 50%;
+   background: #fff;
+   position: absolute;
+   top: -15px;
+   left: 10px;
+}
+.cracker>div span i:after {
+   content: '';
+   width: 3px;
+   height: 3px;
+   display: block;
+   border-radius: 50%;
+   background: #fff;
+   position: absolute;
+   top: -15px;
+   right: 10px;
+}
+@keyframes Yr_2024 {
+   0% {
+      right: 0%;
+   }
+   66.6666% {
+      right: 50%;
+      margin-right: -300px;
+   }
+   90% {
+      right: 50%;
+      margin-right: -300px;
+   }
+   100% {
+      right: 50%;
+   }
+}
+@keyframes balloon_animation {
+   0% {
+      right: 0%;
+   }
+   40% {
+      right: 50%;
+      margin-right: -300px;
+   }
+   50% {
+      right: 50%;
+      margin-right: -200px;
+      top: 50%;
+   }
+   100% {
+      top: -100%;
+      right: 50%;
+   }
+}
+@keyframes years {
+   0% {
+      transform: rotate(-30deg);
+      width: 40px;
+   }
+   100% {
+      transform: rotate(-150deg);
+      width: 70px;
+   }
+}
+@keyframes Yr_2023 {
+   0% {
+      top: 50%;
+   }
+   100% {
+      top: -100%;
+   }
+}
+@keyframes message {
+   0% {
+      margin-top: 0px;
+      opacity: 0;
+   }
+   100% {
+      margin-top: -200px;
+      opacity: 1;
+   }
+}
+@keyframes fire {
+   0% {
+      margin-top: 100%;
+      opacity: 0;
+      width: 2px;
+      height: 30px;
+      display: block;
+      border-radius: 50%;
+   }
+   75% {
+      margin-top: 0%;
+      opacity: 1;
+      width: 2px;
+      height: 30px;
+      display: block;
+      border-radius: 50%;
+   }
+   80% {
+      margin-top: 0px;
+      margin-left: 0px;
+      opacity: 1;
+      width: 10px;
+      height: 10px;
+      display: block;
+      border-radius: 50%;
+      transform: scale(0.2);
+   }
+   100% {
+      opacity: 1;
+      width: 10px;
+      height: 10px;
+      display: block;
+      border-radius: 50%;
+      transform: scale(1);
+   }
+}
+@keyframes fire_animation {
+   0% {
+      opacity: 0;
+   }
+   100% {
+      opacity: 1;
+   }
+}
+  </style>
+  <div class="msg">Happy New Year</div>
+  <div class="Year">
+    <span>202</span>
+    <span class="y1">3</span>
+    <span class="y2">4</span>
+    <div class="balloon"></div>
+  </div>
 
-// mouse event bindings
-// update the mouse coordinates on mousemove
-canvas.addEventListener( 'mousemove', function( e ) {
-	mx = e.pageX - canvas.offsetLeft;
-	my = e.pageY - canvas.offsetTop;
-});
+  <div class="cracker">
+    <div class="f1">
+      <span><i></i></span>
+      <span><i></i></span>
+      <span><i></i></span>
+    </div>
 
-// toggle mousedown state and prevent canvas from being selected
-canvas.addEventListener( 'mousedown', function( e ) {
-	e.preventDefault();
-	mousedown = true;
-});
+    <div class="f2">
+      <span><i></i></span>
+      <span><i></i></span>
+      <span><i></i></span>
+    </div>
 
-canvas.addEventListener( 'mouseup', function( e ) {
-	e.preventDefault();
-	mousedown = false;
-});
+    <div class="f3">
+      <span><i></i></span>
+      <span><i></i></span>
+      <span><i></i></span>
+    </div>
 
-// once the window loads, we are ready for some fireworks!
-window.onload = loop;
-</script>
-</body>
+    <div class="f4">
+      <span><i></i></span>
+      <span><i></i></span>
+      <span><i></i></span>
+    </div>
+  </div>
+  </body>
 </html>
